@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Racing Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        #status {
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #d9534f; /* Bootstrap danger color */
+        }
+        input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 4px;
+            background-color: #5bc0de; /* Bootstrap info color */
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #31b0d5; /* Darker shade on hover */
+        }
+        #players {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #players p {
+            margin: 5px 0;
+            padding: 5px;
+            background-color: #e7f3fe; /* Light blue background */
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Racing Game</h1>
+    <div id="status"></div>
+    <input type="text" id="username" placeholder="Enter your username" />
+    <input type="text" id="lobbyId" placeholder="Enter lobby ID" />
+    <button id="createLobby">Create Lobby</button>
+    <button id="joinLobby">Join Lobby</button>
+    
+    <h2>Update Position</h2>
+    <input type="text" id="posX" placeholder="Enter X position" />
+    <input type="text" id="posY" placeholder="Enter Y position" />
+    <button id="updatePosition">Update Position</button>
+    
+    <button id="finishGame">Finish Game</button>
+    <div id="players"></div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8080');
+        const statusDiv = document.getElementById('status');
+        const playersDiv = document.getElementById('players');
+        let currentLobbyId = null;
+
+        ws.onopen = () => {
+            statusDiv.innerText = 'Connected to the server';
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            switch (data.type) {
+                case 'lobbyCreated':
+                    currentLobbyId = data.lobbyId;
+                    statusDiv.innerText = `Lobby created with ID: ${currentLobbyId}`;
+                    break;
+
+                case 'joinedLobby':
+                    playersDiv.innerHTML = '';
+                    for (const player in data.players) {
+                        playersDiv.innerHTML += `<p>${data.players[player].username}</p>`;
+                    }
+                    break;
+
+                case 'playerJoined':
+                    playersDiv.innerHTML += `<p>${data.username} joined the lobby</p>`;
+                    break;
+
+                case 'positionUpdate':
+                    // Handle position updates if needed
+                    break;
+
+                case 'gameFinished':
+                    statusDiv.innerText = 'Game finished! Final results:';
+                    data.results.forEach(result => {
+                        statusDiv.innerText += `\n${result.username} - Position: ${JSON.stringify(result.position)}`;
+                    });
+                    break;
+
+                case 'playerLeft':
+                    playersDiv.innerHTML += `<p>${data.username} left the lobby</p>`;
+                    break;
+
+                case 'error':
+                    statusDiv.innerText = data.message;
+                    break;
+            }
+        };
+
+        document.getElementById('createLobby').onclick = () => {
+            const username = document .getElementById('username').value;
+            if (username) {
+                ws.send(JSON.stringify({ type: 'createLobby', username }));
+            } else {
+                statusDiv.innerText = 'Please enter a username';
+            }
+        };
+
+        document.getElementById('joinLobby').onclick = () => {
+            const username = document.getElementById('username').value;
+            const lobbyId = document.getElementById('lobbyId').value;
+            if (username && lobbyId) {
+                ws.send(JSON.stringify({ type: 'joinLobby', lobbyId, username }));
+            } else {
+                statusDiv.innerText = 'Please enter a username and lobby ID';
+            }
+        };
+
+        document.getElementById('updatePosition').onclick = () => {
+            const posX = document.getElementById('posX').value;
+            const posY = document.getElementById('posY').value;
+            if (currentLobbyId && posX && posY) {
+                ws.send(JSON.stringify({ type: 'updatePosition', lobbyId: currentLobbyId, position: { x: posX, y: posY } }));
+            } else {
+                statusDiv.innerText = 'Please enter both X and Y positions and ensure you are in a lobby';
+            }
+        };
+
+        document.getElementById('finishGame').onclick = () => {
+            if (currentLobbyId) {
+                ws.send(JSON.stringify({ type: 'finishGame', lobbyId: currentLobbyId }));
+            } else {
+                statusDiv.innerText = 'You need to join a lobby first';
+            }
+        };
+    </script>
+</body>
+</html>
