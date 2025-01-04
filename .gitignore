@@ -17,3 +17,4 @@ node_modules/ws/package.json
 node_modules/ws/LICENSE
 node_modules/ws/index.js
 node_modules/ws/browser.js
+node_modules/ws/readme.md
